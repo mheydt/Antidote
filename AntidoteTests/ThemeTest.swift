@@ -72,6 +72,11 @@ class ThemeTest: XCTestCase {
             "  rounded-button-text: second\n" +
             "  rounded-positive-button-background: first\n" +
             "  rounded-negative-button-background: second\n" +
+            "  empty-screen-placeholder-text: first\n" +
+            "  file-image-background-active: second\n" +
+            "  file-image-cancelled-text: first\n" +
+            "  file-image-accept-button-tint: second\n" +
+            "  file-image-cancel-button-tint: first\n" +
             ""
 
         let first = UIColor(red: 170.0 / 255.0, green: 187.0 / 255.0, blue: 204.0 / 255.0, alpha: 1.0)
@@ -126,6 +131,11 @@ class ThemeTest: XCTestCase {
             XCTAssertEqual(second, theme.colorForType(.RoundedButtonText))
             XCTAssertEqual(first, theme.colorForType(.RoundedPositiveButtonBackground))
             XCTAssertEqual(second, theme.colorForType(.RoundedNegativeButtonBackground))
+            XCTAssertEqual(first, theme.colorForType(.EmptyScreenPlaceholderText))
+            XCTAssertEqual(second, theme.colorForType(.FileImageBackgroundActive))
+            XCTAssertEqual(first, theme.colorForType(.FileImageCancelledText))
+            XCTAssertEqual(second, theme.colorForType(.FileImageAcceptButtonTint))
+            XCTAssertEqual(first, theme.colorForType(.FileImageCancelButtonTint))
         }
         catch let error as ErrorTheme {
             XCTFail(error.debugDescription())
@@ -149,7 +159,7 @@ class ThemeTest: XCTestCase {
             let _ = try Theme(yamlString: string)
         }
         catch ErrorTheme.WrongVersion(let description) {
-            didThrow = description == String(localized: "theme_error_version_too_high")
+            didThrow = description == String(localized: "theme_error_cannot_open")
         }
         catch {
             didThrow = false
@@ -172,7 +182,7 @@ class ThemeTest: XCTestCase {
             let _ = try Theme(yamlString: string)
         }
         catch ErrorTheme.WrongVersion(let description) {
-            didThrow = description == String(localized: "theme_error_version_too_low")
+            didThrow = description == String(localized: "theme_error_cannot_open")
         }
         catch {
             didThrow = false

@@ -11,12 +11,19 @@ import Foundation
 protocol ChatListTableManagerDelegate: class {
     func chatListTableManager(manager: ChatListTableManager, didSelectChat chat: OCTChat)
     func chatListTableManager(manager: ChatListTableManager, presentAlertController controller: UIAlertController)
+    func chatListTableManagerWasUpdated(manager: ChatListTableManager)
 }
 
 class ChatListTableManager: NSObject {
     weak var delegate: ChatListTableManagerDelegate?
 
     let tableView: UITableView
+
+    var isEmpty: Bool {
+        get {
+            return chatsController.numberOfRowsForSectionIndex(0) == 0
+        }
+    }
 
     private let theme: Theme
     private let avatarManager: AvatarManager
@@ -60,13 +67,20 @@ extension ChatListTableManager: UITableViewDataSource {
         let friend = chat.friends.lastObject() as! OCTFriend
 
         let model = ChatListCellModel()
-        model.avatar = avatarManager.avatarFromString(
-                friend.nickname,
-                diameter: CGFloat(ChatListCell.Constants.AvatarSize))
+        if let data = friend.avatarData {
+            model.avatar = UIImage(data: data)
+        }
+        else {
+            model.avatar = avatarManager.avatarFromString(
+                    friend.nickname,
+                    diameter: CGFloat(ChatListCell.Constants.AvatarSize))
+        }
 
         model.nickname = friend.nickname
         model.message = lastMessageTextFromChat(chat)
-        model.dateText = dateTextFromDate(chat.lastActivityDate())
+        if let date = chat.lastActivityDate() {
+            model.dateText = dateTextFromDate(date)
+        }
 
         model.status = UserStatus(connectionStatus: friend.connectionStatus, userStatus: friend.status)
         model.isUnread = chat.hasUnreadMessages()
@@ -120,6 +134,8 @@ extension ChatListTableManager: RBQFetchedResultsControllerDelegate {
                 controller.reset()
                 self.tableView.reloadData()
             }
+
+            delegate?.chatListTableManagerWasUpdated(self)
         }
    }
 
@@ -170,10 +186,11 @@ private extension ChatListTableManager {
         }
 
         if let text = message.messageText {
-            return text.text
+            return text.text ?? ""
         }
         else if let file = message.messageFile {
-            return String(localized: message.isOutgoing() ? "chat_outgoing_file" : "chat_incoming_file") + " \(file.fileName)"
+            let fileName = file.fileName ?? ""
+            return String(localized: message.isOutgoing() ? "chat_outgoing_file" : "chat_incoming_file") + " \(fileName)"
         }
         else if let call = message.messageCall {
             switch call.callEvent {

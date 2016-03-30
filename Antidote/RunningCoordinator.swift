@@ -65,6 +65,7 @@ class RunningCoordinator: NSObject {
     private let profileCoordinator: ProfileTabCoordinator
 
     private let notificationCoordinator: NotificationCoordinator
+    private let automationCoordinator: AutomationCoordinator
     private var callCoordinator: CallCoordinator!
 
     /**
@@ -82,6 +83,7 @@ class RunningCoordinator: NSObject {
         self.settingsCoordinator = SettingsTabCoordinator(theme: theme)
         self.profileCoordinator = ProfileTabCoordinator(theme: theme, toxManager: toxManager)
         self.notificationCoordinator = NotificationCoordinator(theme: theme, submanagerObjects: toxManager.objects)
+        self.automationCoordinator = AutomationCoordinator(submanagerObjects: toxManager.objects, submanagerFiles: toxManager.files)
 
         super.init()
 
@@ -96,13 +98,9 @@ class RunningCoordinator: NSObject {
         profileCoordinator.delegate = self
         notificationCoordinator.delegate = self
     }
-
-    func handleLocalNotification(notification: UILocalNotification) {
-        notificationCoordinator.handleLocalNotification(notification)
-    }
 }
 
-extension RunningCoordinator: CoordinatorProtocol {
+extension RunningCoordinator: TopCoordinatorProtocol {
     func startWithOptions(options: CoordinatorOptions?) {
         switch InterfaceIdiom.current() {
             case .iPhone:
@@ -111,6 +109,7 @@ extension RunningCoordinator: CoordinatorProtocol {
 
                 window.rootViewController = iPhone.tabBarController
             case .iPad:
+                primaryIpadControllerShowFriends(iPad.primaryController)
 
                 window.rootViewController = iPad.splitController
         }
@@ -129,16 +128,65 @@ extension RunningCoordinator: CoordinatorProtocol {
         settingsCoordinator.startWithOptions(settingsOptions)
         profileCoordinator.startWithOptions(nil)
         notificationCoordinator.startWithOptions(nil)
+        automationCoordinator.startWithOptions(nil)
         callCoordinator.startWithOptions(nil)
 
         toxManager.bootstrap.addPredefinedNodes()
         toxManager.bootstrap.bootstrap()
+
+        updateUserAvatar()
+        updateUserName()
 
         switch toShow {
             case .None:
                 break
             case .Settings:
                 showSettings()
+        }
+    }
+
+    func handleLocalNotification(notification: UILocalNotification) {
+        notificationCoordinator.handleLocalNotification(notification)
+    }
+
+    func handleOpenURL(openURL: OpenURL, resultBlock: HandleURLResult -> Void) {
+        guard openURL.url.isToxURL() else {
+            resultBlock(.Success)
+            return
+        }
+
+        guard let fileName = openURL.url.lastPathComponent else {
+            resultBlock(.Success)
+            return
+        }
+
+        let style: UIAlertControllerStyle
+
+        switch InterfaceIdiom.current() {
+            case .iPhone:
+                style = .ActionSheet
+            case .iPad:
+                style = .Alert
+        }
+
+        let alert = UIAlertController(title: nil, message: fileName, preferredStyle: style)
+
+        alert.addAction(UIAlertAction(title: String(localized: "create_profile"), style: .Default) { [unowned self] _ -> Void in
+            let modifiedURL = OpenURL(url: openURL.url, askUser: false)
+
+            resultBlock(.Failure(openURL: modifiedURL))
+            self.logout()
+        })
+
+        alert.addAction(UIAlertAction(title: String(localized: "alert_cancel"), style: .Cancel) { _ -> Void in
+            resultBlock(.Success)
+        })
+
+        switch InterfaceIdiom.current() {
+            case .iPhone:
+                iPhone.tabBarController.presentViewController(alert, animated: true, completion: nil)
+            case .iPad:
+                iPad.splitController.presentViewController(alert, animated: true, completion: nil)
         }
     }
 }
@@ -157,8 +205,8 @@ extension RunningCoordinator: NotificationCoordinatorDelegate {
         showChat(chat)
     }
 
-    func notificationCoordinatorShowFriendRequest(coordinator: NotificationCoordinator) {
-        showFriendList()
+    func notificationCoordinatorShowFriendRequest(coordinator: NotificationCoordinator, showRequest request: OCTFriendRequest) {
+        showFriendRequest(request)
     }
 
     func notificationCoordinatorAnswerIncomingCall(coordinator: NotificationCoordinator, userInfo: String) {
@@ -166,11 +214,13 @@ extension RunningCoordinator: NotificationCoordinatorDelegate {
     }
 
     func notificationCoordinator(coordinator: NotificationCoordinator, updateFriendsBadge badge: Int) {
+        let text: String? = (badge > 0) ? "\(badge)" : nil
+
         switch InterfaceIdiom.current() {
             case .iPhone:
-                iPhone.friendsTabBarItem.badgeText = (badge > 0) ? "\(badge)" : nil
+                iPhone.friendsTabBarItem.badgeText = text
             case .iPad:
-                // TODO
+                iPad.primaryController.friendsBadgeText = text
                 break
         }
     }
@@ -180,7 +230,7 @@ extension RunningCoordinator: NotificationCoordinatorDelegate {
             case .iPhone:
                 iPhone.chatsTabBarItem.badgeText = (badge > 0) ? "\(badge)" : nil
             case .iPad:
-                // TODO
+                // none
                 break
         }
     }
@@ -237,9 +287,7 @@ extension RunningCoordinator: SettingsTabCoordinatorDelegate {
 
 extension RunningCoordinator: ProfileTabCoordinatorDelegate {
     func profileTabCoordinatorDelegateLogout(coordinator: ProfileTabCoordinator) {
-        UserDefaultsManager().isUserLoggedIn = false
-
-        delegate?.runningCoordinatorDidLogout(self)
+        logout()
     }
 
     func profileTabCoordinatorDelegateDeleteProfile(coordinator: ProfileTabCoordinator) {
@@ -248,9 +296,16 @@ extension RunningCoordinator: ProfileTabCoordinatorDelegate {
         delegate?.runningCoordinatorDeleteProfile(self)
     }
 
-    func profileTabCoordinatorDelegateDidChangeUserStatus(coordinator: ProfileTabCoordinator)
-    {
+    func profileTabCoordinatorDelegateDidChangeUserStatus(coordinator: ProfileTabCoordinator) {
         updateUserStatusView()
+    }
+
+    func profileTabCoordinatorDelegateDidChangeAvatar(coordinator: ProfileTabCoordinator) {
+        updateUserAvatar()
+    }
+
+    func profileTabCoordinatorDelegateDidChangeUserName(coordinator: ProfileTabCoordinator) {
+        updateUserName()
     }
 }
 
@@ -284,13 +339,26 @@ extension RunningCoordinator: ChatPrivateControllerDelegate {
     func chatPrivateControllerCallToChat(controller: ChatPrivateController, enableVideo: Bool) {
         callCoordinator.callToChat(controller.chat, enableVideo: enableVideo)
     }
+
+    func chatPrivateControllerShowQuickLookController(
+            controller: ChatPrivateController,
+            dataSource: QuickLookPreviewControllerDataSource,
+            selectedIndex: Int)
+    {
+        let controller = QuickLookPreviewController()
+        controller.dataSource = dataSource
+        controller.dataSourceStorage = dataSource
+        controller.currentPreviewItemIndex = selectedIndex
+
+        iPad.splitController.presentViewController(controller, animated: true, completion: nil)
+    }
 }
 
 private extension RunningCoordinator {
     func createDeviceSpecificObjects() {
         switch InterfaceIdiom.current() {
             case .iPhone:
-                let chatsCoordinator = ChatsTabCoordinator(theme: theme, submanagerObjects: toxManager.objects, submanagerChats: toxManager.chats)
+                let chatsCoordinator = ChatsTabCoordinator(theme: theme, submanagerObjects: toxManager.objects, submanagerChats: toxManager.chats, submanagerFiles: toxManager.files)
                 chatsCoordinator.delegate = self
 
                 let tabBarControllers = IphoneObjects.TabCoordinator.allValues().map { object -> UINavigationController in
@@ -357,7 +425,7 @@ private extension RunningCoordinator {
                 case .Friends:
                     let item = TabBarBadgeItem(theme: theme)
                     item.image = UIImage(named: "tab-bar-friends")
-                    item.text = String(localized: "friends_title")
+                    item.text = String(localized: "contacts_title")
                     return item
                 case .Chats:
                     let item = TabBarBadgeItem(theme: theme)
@@ -375,7 +443,7 @@ private extension RunningCoordinator {
         }
     }
 
-    func showFriendList() {
+    func showFriendRequest(request: OCTFriendRequest) {
         switch InterfaceIdiom.current() {
             case .iPhone:
                 iPhone.tabBarController.selectedIndex = IphoneObjects.TabCoordinator.Friends.rawValue
@@ -383,7 +451,7 @@ private extension RunningCoordinator {
                 primaryIpadControllerShowFriends(iPad.primaryController)
         }
 
-        friendsCoordinator.showFriendListAnimated(false)
+        friendsCoordinator.showRequest(request, animated: false)
     }
 
     func showChat(chat: OCTChat) {
@@ -392,11 +460,19 @@ private extension RunningCoordinator {
                 iPhone.tabBarController.selectedIndex = IphoneObjects.TabCoordinator.Chats.rawValue
                 iPhone.chatsCoordinator.showChat(chat, animated: false)
             case .iPad:
+                if let chatVC = iPadDetailController() as? ChatPrivateController {
+                    if chatVC.chat == chat {
+                        // controller is already visible
+                        return
+                    }
+                }
+
                 let controller = ChatPrivateController(
                         theme: theme,
                         chat: chat,
                         submanagerChats: toxManager.chats,
                         submanagerObjects: toxManager.objects,
+                        submanagerFiles: toxManager.files,
                         delegate: self)
                 let navigation = UINavigationController(rootViewController: controller)
 
@@ -420,8 +496,52 @@ private extension RunningCoordinator {
             case .iPhone:
                 iPhone.profileTabBarItem.userStatus = status
             case .iPad:
-                // TODO
-                break
+                iPad.primaryController.userStatus = status
         }
+    }
+
+    func updateUserAvatar() {
+        var avatar: UIImage?
+
+        if let avatarData = toxManager.user.userAvatar() {
+            avatar = UIImage(data: avatarData)
+        }
+
+        switch InterfaceIdiom.current() {
+            case .iPhone:
+                iPhone.profileTabBarItem.userImage = avatar
+            case .iPad:
+                iPad.primaryController.userAvatar = avatar
+        }
+    }
+
+    func updateUserName() {
+        switch InterfaceIdiom.current() {
+            case .iPhone:
+                // nop
+                break
+            case .iPad:
+                iPad.primaryController.userName = toxManager.user.userName()
+        }
+    }
+
+    func iPadDetailController() -> UIViewController? {
+        guard iPad.splitController.viewControllers.count == 2 else {
+            return nil
+        }
+
+        let controller = iPad.splitController.viewControllers[1]
+
+        if let navigation = controller as? UINavigationController {
+            return navigation.topViewController
+        }
+
+        return controller
+    }
+
+    func logout() {
+        UserDefaultsManager().isUserLoggedIn = false
+
+        delegate?.runningCoordinatorDidLogout(self)
     }
 }

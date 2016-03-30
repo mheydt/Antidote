@@ -4,6 +4,10 @@
 
 ![](https://i.imgur.com/5HF5RMX.png)
 
+## Translation
+
+You can help by translating Antidote to different languages. Translation is done with help of Transifex service and you can join [here](https://www.transifex.com/antidote/antidote-ios/).
+
 ##Usage
 
 #### TestFlight beta testing
@@ -33,11 +37,11 @@ See [CHANGELOG](CHANGELOG.md) for list of notable changes (unreleased, current a
 -  emoticons
 -  spell check
 -  reading/scanning Tox ID via QR code
--  ~~file transfer~~ *(temporary disabled)*
--  read receipts
+-  file transfer
+-  ~~read receipts~~ *(temporary disabled)*
 -  multiple profiles
 -  tox_save import/export
--  ~~avatars~~ *(temporary disabled)*
+-  avatars
 -  audio calls
 -  video calls
 

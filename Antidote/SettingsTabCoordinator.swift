@@ -48,8 +48,9 @@ extension SettingsTabCoordinator: SettingsMainControllerDelegate {
         navigationController.pushViewController(controller, animated: true)
     }
 
-    func settingsMainControllerShowBetaTesterMenu(controller: SettingsMainController) {
-        let controller = BetaTestersMenuController()
+    func settingsMainControllerChangeAutodownloadImages(controller: SettingsMainController) {
+        let controller = ChangeAutodownloadImagesController(theme: theme)
+        controller.delegate = self
 
         navigationController.pushViewController(controller, animated: true)
     }
@@ -59,6 +60,12 @@ extension SettingsTabCoordinator: SettingsMainControllerDelegate {
         controller.delegate = self
 
         navigationController.pushViewController(controller, animated: true)
+    }
+}
+
+extension SettingsTabCoordinator: ChangeAutodownloadImagesControllerDelegate {
+    func changeAutodownloadImagesControllerDidChange(controller: ChangeAutodownloadImagesController) {
+        navigationController.popViewControllerAnimated(true)
     }
 }
 

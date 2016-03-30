@@ -12,6 +12,8 @@ protocol ProfileTabCoordinatorDelegate: class {
     func profileTabCoordinatorDelegateLogout(coordinator: ProfileTabCoordinator)
     func profileTabCoordinatorDelegateDeleteProfile(coordinator: ProfileTabCoordinator)
     func profileTabCoordinatorDelegateDidChangeUserStatus(coordinator: ProfileTabCoordinator)
+    func profileTabCoordinatorDelegateDidChangeAvatar(coordinator: ProfileTabCoordinator)
+    func profileTabCoordinatorDelegateDidChangeUserName(coordinator: ProfileTabCoordinator)
 }
 
 class ProfileTabCoordinator: RunningNavigationCoordinator {
@@ -42,11 +44,12 @@ extension ProfileTabCoordinator: ProfileMainControllerDelegate {
     }
 
     func profileMainControllerChangeUserName(controller: ProfileMainController) {
-        showTextEditController(title: String(localized: "name"), defaultValue: toxManager.user.userName()) {
-            newName -> Void in
+        showTextEditController(title: String(localized: "name"), defaultValue: toxManager.user.userName() ?? "") {
+            [unowned self] newName -> Void in
 
             do {
                 try self.toxManager.user.setUserName(newName)
+                self.delegate?.profileTabCoordinatorDelegateDidChangeUserName(self)
             }
             catch let error as NSError {
                 handleErrorWithType(.ToxSetInfoCodeName, error: error)
@@ -61,7 +64,7 @@ extension ProfileTabCoordinator: ProfileMainControllerDelegate {
     }
 
     func profileMainControllerChangeStatusMessage(controller: ProfileMainController) {
-        showTextEditController(title: String(localized: "status_message"), defaultValue: toxManager.user.userStatusMessage()) {
+        showTextEditController(title: String(localized: "status_message"), defaultValue: toxManager.user.userStatusMessage() ?? "") {
             newStatusMessage -> Void in
 
             do {
@@ -86,6 +89,10 @@ extension ProfileTabCoordinator: ProfileMainControllerDelegate {
         let controller = ProfileDetailsController(theme: theme, toxManager: toxManager)
         controller.delegate = self
         navigationController.pushViewController(controller, animated: true)
+    }
+
+    func profileMainControllerDidChangeAvatar(controller: ProfileMainController) {
+        delegate?.profileTabCoordinatorDelegateDidChangeAvatar(self)
     }
 }
 

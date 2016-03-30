@@ -10,7 +10,7 @@ import UIKit
 import SnapKit
 
 private struct Constants {
-    static let Sqrt2:CGFloat = 1.4142135623731
+    static let Sqrt2: CGFloat = 1.4142135623731
 }
 
 class ImageViewWithStatus: UIView {
@@ -45,6 +45,7 @@ private extension ImageViewWithStatus {
         imageView = UIImageView()
         imageView.backgroundColor = UIColor.clearColor()
         imageView.layer.masksToBounds = true
+        // imageView.contentMode = .ScaleAspectFit
         addSubview(imageView)
 
         userStatusView = UserStatusView()

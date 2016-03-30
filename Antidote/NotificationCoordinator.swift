@@ -19,7 +19,7 @@ private struct Constants {
 
 protocol NotificationCoordinatorDelegate: class {
     func notificationCoordinator(coordinator: NotificationCoordinator, showChat chat: OCTChat)
-    func notificationCoordinatorShowFriendRequest(coordinator: NotificationCoordinator)
+    func notificationCoordinatorShowFriendRequest(coordinator: NotificationCoordinator, showRequest request: OCTFriendRequest)
     func notificationCoordinatorAnswerIncomingCall(coordinator: NotificationCoordinator, userInfo: String)
 
     func notificationCoordinator(coordinator: NotificationCoordinator, updateFriendsBadge badge: Int)
@@ -177,11 +177,13 @@ extension NotificationCoordinator: RBQFetchedResultsControllerDelegate {
             case .Update:
                 break
         }
+    }
 
+   func controllerDidChangeContent(controller: RBQFetchedResultsController) {
         if controller === chatsController || controller === requestsController {
             updateBadges()
         }
-    }
+   }
 }
 
 private extension NotificationCoordinator {
@@ -190,7 +192,7 @@ private extension NotificationCoordinator {
             return
         }
 
-        if message.messageText != nil {
+        if message.messageText != nil || message.messageFile != nil {
             audioPlayer.playSound(.NewMessage, loop: false)
         }
     }
@@ -204,8 +206,7 @@ private extension NotificationCoordinator {
             return false
         }
 
-        // Currently support only text notifications.
-        if message.messageText != nil {
+        if message.messageText != nil || message.messageFile != nil {
             return true
         }
 
@@ -281,20 +282,38 @@ private extension NotificationCoordinator {
 
     func notificationObjectFromRequest(request: OCTFriendRequest) -> NotificationObject {
         let image = avatarManager.avatarFromString("", diameter: NotificationView.Constants.ImageSize)
-        let title = String(localized: "notification_incoming_friend_request")
-        let body = request.message
+        let title = String(localized: "notification_incoming_contact_request")
+        let body = request.message ?? ""
+        let action = NotificationAction.OpenRequest(requestUniqueIdentifier: request.uniqueIdentifier)
 
-        return NotificationObject(image: image, title: title, body: body, action: .OpenRequests, soundName: "isotoxin_NewMessage.aac")
+        return NotificationObject(image: image, title: title, body: body, action: action, soundName: "isotoxin_NewMessage.aac")
     }
 
     func notificationObjectFromMessage(message: OCTMessageAbstract) -> NotificationObject {
-        let image = avatarManager.avatarFromString(message.sender.nickname, diameter: NotificationView.Constants.ImageSize)
-        let title = message.sender.nickname
+        let image = avatarManager.avatarFromString(message.sender?.nickname ?? "?", diameter: NotificationView.Constants.ImageSize)
+        let title = message.sender?.nickname ?? ""
         var body: String = ""
         let action = NotificationAction.OpenChat(chatUniqueIdentifier: message.chat.uniqueIdentifier)
 
-        if message.messageText != nil {
-            body = userDefaults.showNotificationPreview ? message.messageText.text : String(localized: "notification_new_message")
+        if let messageText = message.messageText {
+            let defaultString = String(localized: "notification_new_message")
+
+            if userDefaults.showNotificationPreview {
+                body = messageText.text ?? defaultString
+            }
+            else {
+                body = defaultString
+            }
+        }
+        else if let messageFile = message.messageFile {
+            let defaultString = String(localized: "notification_incoming_file")
+
+            if userDefaults.showNotificationPreview {
+                body = messageFile.fileName ?? defaultString
+            }
+            else {
+                body = defaultString
+            }
         }
 
         return NotificationObject(image: image, title: title, body: body, action: action, soundName: "isotoxin_NewMessage.aac")
@@ -309,8 +328,12 @@ private extension NotificationCoordinator {
 
                 delegate?.notificationCoordinator(self, showChat: chat)
                 banNotificationsForChat(chat)
-            case .OpenRequests:
-                delegate?.notificationCoordinatorShowFriendRequest(self)
+            case .OpenRequest(let identifier):
+                guard let request = submanagerObjects.objectWithUniqueIdentifier(identifier, forType: .FriendRequest) as? OCTFriendRequest else {
+                    return
+                }
+
+                delegate?.notificationCoordinatorShowFriendRequest(self, showRequest: request)
             case .AnswerIncomingCall(let userInfo):
                 delegate?.notificationCoordinatorAnswerIncomingCall(self, userInfo: userInfo)
         }

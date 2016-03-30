@@ -11,8 +11,8 @@ import MessageUI
 
 protocol SettingsMainControllerDelegate: class {
     func settingsMainControllerShowAboutScreen(controller: SettingsMainController)
-    func settingsMainControllerShowBetaTesterMenu(controller: SettingsMainController)
     func settingsMainControllerShowAdvancedSettings(controller: SettingsMainController)
+    func settingsMainControllerChangeAutodownloadImages(controller: SettingsMainController)
 }
 
 class SettingsMainController: StaticTableController {
@@ -22,7 +22,7 @@ class SettingsMainController: StaticTableController {
     private let userDefaults = UserDefaultsManager()
 
     private let aboutModel = StaticTableDefaultCellModel()
-    private let betaTesterMenuModel = StaticTableDefaultCellModel()
+    private let autodownloadImagesModel = StaticTableInfoCellModel()
     private let notificationsModel = StaticTableSwitchCellModel()
     private let advancedSettingsModel = StaticTableDefaultCellModel()
     private let feedbackModel = StaticTableButtonCellModel()
@@ -35,17 +35,20 @@ class SettingsMainController: StaticTableController {
                 aboutModel,
             ],
             [
+                autodownloadImagesModel,
+            ],
+            [
                 notificationsModel,
             ],
             [
                 advancedSettingsModel,
             ],
             [
-                betaTesterMenuModel,
                 feedbackModel,
             ],
         ], footers: [
             nil,
+            String(localized: "settings_autodownload_images_description"),
             String(localized: "settings_notifications_description"),
             nil,
             nil,
@@ -57,6 +60,13 @@ class SettingsMainController: StaticTableController {
 
     required convenience init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewWillAppear(animated: Bool) {
+        super.viewWillAppear(animated)
+
+        updateModels()
+        reloadTableView()
     }
 }
 
@@ -72,9 +82,17 @@ private extension SettingsMainController{
         aboutModel.didSelectHandler = showAboutScreen
         aboutModel.rightImageType = .Arrow
 
-        betaTesterMenuModel.value = String(localized: "settings_beta_tester_menu")
-        betaTesterMenuModel.didSelectHandler = showBetaTesterMenu
-        betaTesterMenuModel.rightImageType = .Arrow
+        autodownloadImagesModel.title = String(localized: "settings_autodownload_images")
+        autodownloadImagesModel.showArrow = true
+        autodownloadImagesModel.didSelectHandler = changeAutodownloadImages
+        switch userDefaults.autodownloadImages {
+            case .Never:
+                autodownloadImagesModel.value = String(localized: "settings_never")
+            case .UsingWiFi:
+                autodownloadImagesModel.value = String(localized: "settings_wifi")
+            case .Always:
+                autodownloadImagesModel.value = String(localized: "settings_always")
+        }
 
         notificationsModel.title = String(localized: "settings_notifications_message_preview")
         notificationsModel.on = userDefaults.showNotificationPreview
@@ -88,23 +106,23 @@ private extension SettingsMainController{
         feedbackModel.didSelectHandler = feedback
     }
 
-    func showAboutScreen() {
+    func showAboutScreen(_: StaticTableBaseCell) {
         delegate?.settingsMainControllerShowAboutScreen(self)
-    }
-
-    func showBetaTesterMenu() {
-        delegate?.settingsMainControllerShowBetaTesterMenu(self)
     }
 
     func notificationsValueChanged(on: Bool) {
         userDefaults.showNotificationPreview = on
     }
 
-    func showAdvancedSettings() {
+    func changeAutodownloadImages(_: StaticTableBaseCell) {
+        delegate?.settingsMainControllerChangeAutodownloadImages(self)
+    }
+
+    func showAdvancedSettings(_: StaticTableBaseCell) {
         delegate?.settingsMainControllerShowAdvancedSettings(self)
     }
 
-    func feedback() {
+    func feedback(_: StaticTableBaseCell) {
         guard MFMailComposeViewController.canSendMail() else {
             UIAlertView.showErrorWithMessage(String(localized: "settings_configure_email"))
             return

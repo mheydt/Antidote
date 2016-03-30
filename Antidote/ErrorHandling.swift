@@ -25,13 +25,19 @@ enum ErrorHandlerType {
     case RouteAudioToSpeaker
     case EnableVideoSending
     case CallSwitchCamera
+    case ConvertImageToPNG
+    case ChangeAvatar
+    case SendFileToFriend
+    case AcceptIncomingFile
+    case CancelFileTransfer
+    case PauseFileTransfer
 }
 
 
 func handleErrorWithType(type: ErrorHandlerType, error: NSError? = nil) {
     switch type {
         case .CannotLoadHTML:
-            UIAlertView.showErrorWithMessage(String(localized: "error_file_not_found"))
+            UIAlertView.showErrorWithMessage(String(localized: "error_internal_message"))
         case .CreateOCTManager:
             let (title, message) = OCTManagerInitError(rawValue: error!.code)!.strings()
             UIAlertView.showWithTitle(title, message: message)
@@ -69,6 +75,23 @@ func handleErrorWithType(type: ErrorHandlerType, error: NSError? = nil) {
             UIAlertView.showWithTitle(String(localized: "error_title"), message: String(localized: "error_internal_message"))
         case .CallSwitchCamera:
             UIAlertView.showWithTitle(String(localized: "error_title"), message: String(localized: "error_internal_message"))
+        case .ConvertImageToPNG:
+            UIAlertView.showWithTitle(String(localized: "error_title"), message: String(localized: "change_avatar_error_convert_image"))
+        case .ChangeAvatar:
+            let (title, message) = OCTSetUserAvatarError(rawValue: error!.code)!.strings()
+            UIAlertView.showWithTitle(title, message: message)
+        case .SendFileToFriend:
+            let (title, message) = OCTSendFileError(rawValue: error!.code)!.strings()
+            UIAlertView.showWithTitle(title, message: message)
+        case .AcceptIncomingFile:
+            let (title, message) = OCTAcceptFileError(rawValue: error!.code)!.strings()
+            UIAlertView.showWithTitle(title, message: message)
+        case .CancelFileTransfer:
+            let (title, message) = OCTFileTransferError(rawValue: error!.code)!.strings()
+            UIAlertView.showWithTitle(title, message: message)
+        case .PauseFileTransfer:
+            let (title, message) = OCTFileTransferError(rawValue: error!.code)!.strings()
+            UIAlertView.showWithTitle(title, message: message)
     }
 }
 
@@ -76,47 +99,47 @@ extension OCTManagerInitError {
     func strings() -> (title: String, message: String) {
         switch self {
             case .PassphraseFailed:
-                return (String(localized: "manager_error_wrong_password_title"),
-                        String(localized: "manager_error_wrong_password_message"))
+                return (String(localized: "error_wrong_password_title"),
+                        String(localized: "error_wrong_password_message"))
             case .CannotImportToxSave:
-                return (String(localized: "manager_error_import_not_exist_title"),
-                        String(localized: "manager_error_import_not_exist_message"))
+                return (String(localized: "error_import_not_exist_title"),
+                        String(localized: "error_import_not_exist_message"))
             case .DecryptNull:
-                return (String(localized: "manager_error_decrypt_title"),
-                        String(localized: "manager_error_decrypt_empty_data_message"))
+                return (String(localized: "error_decrypt_title"),
+                        String(localized: "error_decrypt_empty_data_message"))
             case .DecryptBadFormat:
-                return (String(localized: "manager_error_decrypt_title"),
-                        String(localized: "manager_error_decrypt_bad_format_message"))
+                return (String(localized: "error_decrypt_title"),
+                        String(localized: "error_decrypt_bad_format_message"))
             case .DecryptFailed:
-                return (String(localized: "manager_error_decrypt_title"),
-                        String(localized: "manager_error_decrypt_wrong_password_message"))
+                return (String(localized: "error_decrypt_title"),
+                        String(localized: "error_decrypt_wrong_password_message"))
             case .CreateToxUnknown:
-                return (String(localized: "manager_error_general_title"),
-                        String(localized: "manager_error_general_unknown_message"))
+                return (String(localized: "error_title"),
+                        String(localized: "error_general_unknown_message"))
             case .CreateToxMemoryError:
-                return (String(localized: "manager_error_general_title"),
-                        String(localized: "manager_error_general_no_memory_message"))
+                return (String(localized: "error_title"),
+                        String(localized: "error_general_no_memory_message"))
             case .CreateToxPortAlloc:
-                return (String(localized: "manager_error_general_title"),
-                        String(localized: "manager_error_general_bind_port_message"))
+                return (String(localized: "error_title"),
+                        String(localized: "error_general_bind_port_message"))
             case .CreateToxProxyBadType:
-                return (String(localized: "manager_error_proxy_title"),
+                return (String(localized: "error_proxy_title"),
                         String(localized: "error_internal_message"))
             case .CreateToxProxyBadHost:
-                return (String(localized: "manager_error_proxy_title"),
-                        String(localized: "manager_error_proxy_invalid_address_message"))
+                return (String(localized: "error_proxy_title"),
+                        String(localized: "error_proxy_invalid_address_message"))
             case .CreateToxProxyBadPort:
-                return (String(localized: "manager_error_proxy_title"),
-                        String(localized: "manager_error_proxy_invalid_port_message"))
+                return (String(localized: "error_proxy_title"),
+                        String(localized: "error_proxy_invalid_port_message"))
             case .CreateToxProxyNotFound:
-                return (String(localized: "manager_error_proxy_title"),
-                        String(localized: "manager_error_proxy_host_not_resolved_message"))
+                return (String(localized: "error_proxy_title"),
+                        String(localized: "error_proxy_host_not_resolved_message"))
             case .CreateToxEncrypted:
-                return (String(localized: "manager_error_general_title"),
-                        String(localized: "manager_error_general_profile_encrypted_message"))
+                return (String(localized: "error_title"),
+                        String(localized: "error_general_profile_encrypted_message"))
             case .CreateToxBadFormat:
-                return (String(localized: "manager_error_general_title"),
-                        String(localized: "manager_error_general_bad_format_message"))
+                return (String(localized: "error_title"),
+                        String(localized: "error_general_bad_format_message"))
         }
     }
 }
@@ -129,7 +152,7 @@ extension OCTToxErrorSetInfoCode {
                         String(localized: "error_internal_message"))
             case .TooLong:
                 return (String(localized: "error_title"),
-                        String(localized: "tox_error_name_too_long"))
+                        String(localized: "error_name_too_long"))
         }
     }
 
@@ -140,7 +163,7 @@ extension OCTToxErrorSetInfoCode {
                         String(localized: "error_internal_message"))
             case .TooLong:
                 return (String(localized: "error_title"),
-                        String(localized: "tox_error_status_message_too_long"))
+                        String(localized: "error_status_message_too_long"))
         }
     }
 }
@@ -150,22 +173,22 @@ extension OCTToxErrorFriendAdd {
         switch self {
             case .TooLong:
                 return (String(localized: "error_title"),
-                        String(localized: "tox_error_friend_request_too_long"))
+                        String(localized: "error_contact_request_too_long"))
             case .NoMessage:
                 return (String(localized: "error_title"),
-                        String(localized: "tox_error_friend_request_no_message"))
+                        String(localized: "error_contact_request_no_message"))
             case .OwnKey:
                 return (String(localized: "error_title"),
-                        String(localized: "tox_error_friend_request_own_key"))
+                        String(localized: "error_contact_request_own_key"))
             case .AlreadySent:
                 return (String(localized: "error_title"),
-                        String(localized: "tox_error_friend_request_already_sent"))
+                        String(localized: "error_contact_request_already_sent"))
             case .BadChecksum:
                 return (String(localized: "error_title"),
-                        String(localized: "tox_error_friend_request_bad_checksum"))
+                        String(localized: "error_contact_request_bad_checksum"))
             case .SetNewNospam:
                 return (String(localized: "error_title"),
-                        String(localized: "tox_error_friend_request_new_nospam"))
+                        String(localized: "error_contact_request_new_nospam"))
             case .Malloc:
                 fallthrough
             case .Unknown:
@@ -193,7 +216,7 @@ extension OCTToxAVErrorCall {
                         String(localized: "call_error_already_in_call"))
             case .FriendNotConnected:
                 return (String(localized: "error_title"),
-                        String(localized: "call_error_friend_is_offline"))
+                        String(localized: "call_error_contact_is_offline"))
             case .FriendNotFound:
                 fallthrough
             case .InvalidBitRate:
@@ -224,6 +247,69 @@ extension OCTToxAVErrorAnswer {
             case .Unknown:
                 fallthrough
             case .FriendNotFound:
+                return (String(localized: "error_title"),
+                        String(localized: "error_internal_message"))
+        }
+    }
+}
+
+extension OCTSetUserAvatarError {
+    func strings() -> (title: String, message: String) {
+        switch self {
+            case .TooBig:
+                return (String(localized: "error_title"),
+                        String(localized: "error_internal_message"))
+        }
+    }
+}
+
+extension OCTSendFileError {
+    func strings() -> (title: String, message: String) {
+        switch self {
+            case .InternalError:
+                fallthrough
+            case .CannotReadFile:
+                fallthrough
+            case .CannotSaveFileToUploads:
+                fallthrough
+            case .NameTooLong:
+                fallthrough
+            case .FriendNotFound:
+                return (String(localized: "error_title"),
+                        String(localized: "error_internal_message"))
+            case .FriendNotConnected:
+                return (String(localized: "error_title"),
+                        String(localized: "error_contact_not_connected"))
+            case .TooMany:
+                return (String(localized: "error_title"),
+                        String(localized: "error_too_many_files"))
+        }
+    }
+}
+
+extension OCTAcceptFileError {
+    func strings() -> (title: String, message: String) {
+        switch self {
+            case .InternalError:
+                fallthrough
+            case .CannotWriteToFile:
+                fallthrough
+            case .FriendNotFound:
+                fallthrough
+            case .WrongMessage:
+                return (String(localized: "error_title"),
+                        String(localized: "error_internal_message"))
+            case .FriendNotConnected:
+                return (String(localized: "error_title"),
+                        String(localized: "error_contact_not_connected"))
+        }
+    }
+}
+
+extension OCTFileTransferError {
+    func strings() -> (title: String, message: String) {
+        switch self {
+            case .WrongMessage:
                 return (String(localized: "error_title"),
                         String(localized: "error_internal_message"))
         }
